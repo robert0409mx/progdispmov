@@ -1,50 +1,72 @@
-import { Hono } from 'hono'
-import { Database } from 'bun:sqlite'
+import express from 'express';
+import cors from 'cors';
+import db from './database.js';
 
-// Abre la base de datos
-const db = new Database('./base.sqlite3')
-db.run(`CREATE TABLE IF NOT EXISTS todos (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    todo TEXT NOT NULL,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
-)`)
+const app = express();
+const PORT = 3000;
 
-const app = new Hono()
+// Middlewares
+app.use(cors());
+app.use(express.json());
 
-app.get('/', (c) => {
-    return c.json({ status: 'ok' })
-})
+// Logging
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.url}`);
+  next();
+});
 
-app.post('/login', async (c) => {
-    return c.json({ status: 'ok' })
-})
+// Ruta principal
+app.get('/', (req, res) => {
+  console.log('Respondiendo GET /');
+  res.json({ 
+    mensaje: 'Servidor Express funcionando correctamente',
+    fecha: new Date().toISOString()
+  });
+});
 
-app.post('/insert', async (c) => {
-    let body
-    try {
-        body = await c.req.json()
-    } catch {
-        return c.json({ error: 'Falta información necesaria' }, 400)
+// Endpoint POST para agregar un todo (AHORA GUARDA EN LA BD)
+app.post('/agrega_todo', (req, res) => {
+  console.log('POST /agrega_todo recibido');
+  const { todo } = req.body;
+  
+  // Validar que se recibió el dato
+  if (!todo) {
+    return res.status(400).json({ 
+      error: 'El campo "todo" es requerido' 
+    });
+  }
+  
+  // Insertar en la base de datos
+  const query = `INSERT INTO todos (todo) VALUES (?)`;
+  
+  db.run(query, [todo], function(err) {
+    if (err) {
+      console.error('Error al guardar en la base de datos:', err.message);
+      return res.status(500).json({ 
+        error: 'Error al guardar en la base de datos' 
+      });
     }
+    
+    console.log('Todo guardado con ID:', this.lastID);
+    console.log('Todo:', todo);
+    
+    // Responder con estado 201 (Created)
+    res.status(201).json({
+      mensaje: 'Todo guardado correctamente en la base de datos',
+      id: this.lastID,
+      todo: todo,
+      fecha: new Date().toISOString()
+    });
+  });
+});
 
-    const { todo } = body
-
-    if (!todo) {
-        return c.json({ error: 'Falta información necesaria' }, 400)
-    }
-
-    try {
-        const stmt = db.prepare('INSERT INTO todos (todo) VALUES (?)')
-        const result = stmt.run(todo)
-        return c.json({ id: Number(result.lastInsertRowid), message: 'Insert was successful' }, 201)
-    } catch (err) {
-        return c.json({ error: err.message }, 500)
-    }
-})
-
-export { app, db }
-
-export default {
-    port: process.env.PORT || 3000,
-    fetch: app.fetch,
-}
+// Iniciar servidor
+app.listen(PORT, '0.0.0.0', () => {
+  console.log('========================================');
+  console.log(`Servidor corriendo en puerto ${PORT}`);
+  console.log(`Base de datos: todos.db`);
+  console.log(`Endpoints disponibles:`);
+  console.log(`  GET  /`);
+  console.log(`  POST /agrega_todo`);
+  console.log('========================================');
+});

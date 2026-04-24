@@ -70,3 +70,21 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`  POST /agrega_todo`);
   console.log('========================================');
 });
+
+// Endpoint GET para listar todos los todos
+app.get('/todos', (req, res) => {
+  console.log('GET /todos - Obteniendo todos los registros');
+  
+  db.all('SELECT * FROM todos ORDER BY created_at DESC', [], (err, rows) => {
+    if (err) {
+      console.error('Error al consultar la base de datos:', err.message);
+      return res.status(500).json({ error: err.message });
+    }
+    
+    console.log(`✓ Se encontraron ${rows.length} registros`);
+    res.json({ 
+      total: rows.length,
+      todos: rows 
+    });
+  });
+});

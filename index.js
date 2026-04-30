@@ -88,3 +88,30 @@ app.get('/todos', (req, res) => {
     });
   });
 });
+
+// Endpoint GET para obtener lista de tareas
+app.get('/todos', (req, res) => {
+  console.log('GET /todos - Obteniendo lista de tareas');
+  
+  // Query SQL para obtener todas las tareas ordenadas por fecha de creación
+  const query = 'SELECT * FROM todos ORDER BY created_at DESC';
+  
+  db.all(query, [], (err, rows) => {
+    if (err) {
+      console.error('Error al consultar la base de datos:', err.message);
+      return res.status(500).json({ 
+        error: 'Error al obtener las tareas',
+        detalle: err.message 
+      });
+    }
+    
+    console.log(`✓ Se encontraron ${rows.length} tareas`);
+    
+    // Devolver la lista de tareas en JSON
+    res.status(200).json({
+      success: true,
+      total: rows.length,
+      tareas: rows
+    });
+  });
+});
